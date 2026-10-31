@@ -1,0 +1,58 @@
+{
+  "audioFile": "audio/voiceover.wav",
+  "audioDurationMs": 0,
+  "timingSource": "estimated",
+  "offsetMs": 0,
+  "words": [
+    {
+      "text": "Replace",
+      "startMs": 60,
+      "endMs": 413
+    },
+    {
+      "text": "this",
+      "startMs": 433,
+      "endMs": 627
+    },
+    {
+      "text": "narration",
+      "startMs": 647,
+      "endMs": 1107
+    },
+    {
+      "text": "with",
+      "startMs": 1127,
+      "endMs": 1320
+    },
+    {
+      "text": "your",
+      "startMs": 1340,
+      "endMs": 1533
+    },
+    {
+      "text": "script,",
+      "startMs": 1553,
+      "endMs": 1907
+    },
+    {
+      "text": "one",
+      "startMs": 1927,
+      "endMs": 2067
+    },
+    {
+      "text": "sentence",
+      "startMs": 2087,
+      "endMs": 2493
+    },
+    {
+      "text": "per",
+      "startMs": 2513,
+      "endMs": 2653
+    },
+    {
+      "text": "beat.",
+      "startMs": 2673,
+      "endMs": 2920
+    }
+  ]
+}

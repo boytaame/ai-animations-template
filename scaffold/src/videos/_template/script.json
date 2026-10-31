@@ -1,0 +1,39 @@
+{
+  "slug": "my-video",
+  "title": "New video — one line that says what it is",
+  "fps": 30,
+  "width": 1080,
+  "height": 1920,
+  "voiceover": {
+    "file": "audio/voiceover.wav",
+    "voice": "Provider + voice name + settings, so the next video sounds the same",
+    "notes": "Record, then run scripts/prepare-audio.mjs, then make-captions.mjs."
+  },
+  "music": {
+    "file": "audio/music-placeholder.mp3",
+    "gain": 0.06
+  },
+  "narration": "Replace this narration with your script, one sentence per beat.",
+  "beats": [
+    {
+      "id": "b1",
+      "shot": "example",
+      "text": "Replace this narration with your script, one sentence per beat."
+    }
+  ],
+  "shots": [
+    {
+      "id": "example",
+      "from": 0,
+      "durationInFrames": 90,
+      "theme": "day",
+      "camera": "pushIn",
+      "subject": "what the shot is about",
+      "layers": "foreground / midground / background",
+      "out": {
+        "kind": "hardCut",
+        "carry": "shared motion direction into the next shot"
+      }
+    }
+  ]
+}

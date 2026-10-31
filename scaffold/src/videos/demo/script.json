@@ -1,0 +1,110 @@
+{
+  "slug": "demo",
+  "title": "Kit demo — twelve kilometers of trail",
+  "fps": 30,
+  "width": 1080,
+  "height": 1920,
+  "voiceover": {
+    "file": "audio/voiceover.wav",
+    "voice": "Not recorded — this demo ships with estimated timings.",
+    "notes": "Replace public/audio/voiceover.wav, run scripts/prepare-audio.mjs, then regenerate captions."
+  },
+  "music": {
+    "file": "audio/music-placeholder.mp3",
+    "gain": 0.06,
+    "notes": "Drop any licensed/CC track here. It fades in over 0.5 s and out over 1.2 s."
+  },
+  "narration": "Twelve kilometers of trail, one tiny world. Every tile holds a whole story inside it. Drop through the crust and the world flips. Same kit, every single time.",
+  "beats": [
+    {
+      "id": "b1",
+      "shot": "town",
+      "text": "Twelve kilometers of trail, one tiny world."
+    },
+    {
+      "id": "b2",
+      "shot": "overview",
+      "text": "Every tile holds a whole story inside it."
+    },
+    {
+      "id": "b3",
+      "shot": "underground",
+      "text": "Drop through the crust and the world flips."
+    },
+    {
+      "id": "b4",
+      "shot": "wide",
+      "text": "Same kit, every single time."
+    }
+  ],
+  "shots": [
+    {
+      "id": "town",
+      "from": 0,
+      "durationInFrames": 90,
+      "theme": "day",
+      "camera": "pushIn",
+      "subject": "Figure walking toward the brick townhouse",
+      "layers": "foreground tree + rock, midground figure/building, background skyline trees",
+      "out": {
+        "kind": "whipThrough",
+        "frames": 10,
+        "direction": "left",
+        "carry": "lateral whip continues into the tile orbit"
+      }
+    },
+    {
+      "id": "overview",
+      "from": 90,
+      "durationInFrames": 90,
+      "theme": "day",
+      "camera": "tileIso + slow orbit",
+      "subject": "whole diorama tile",
+      "layers": "tile in the upper two-thirds, navy backdrop",
+      "in": {
+        "kind": "whipThrough",
+        "frames": 10,
+        "direction": "right"
+      },
+      "out": {
+        "kind": "tileSlide",
+        "frames": 10,
+        "direction": "up",
+        "carry": "tile edge shoves the day world up and the cave strip in from below"
+      }
+    },
+    {
+      "id": "underground",
+      "from": 180,
+      "durationInFrames": 70,
+      "theme": "underground",
+      "camera": "slow drift, tilted down",
+      "subject": "Figure falling past a magma pool",
+      "layers": "ledge foreground, falling figure, magma glow background",
+      "in": {
+        "kind": "tileSlide",
+        "frames": 10,
+        "direction": "up"
+      },
+      "out": {
+        "kind": "matchCut",
+        "frames": 0,
+        "carry": "the fall keeps moving down-screen into the wide"
+      }
+    },
+    {
+      "id": "wide",
+      "from": 250,
+      "durationInFrames": 50,
+      "theme": "dusk",
+      "camera": "slow dolly wide with breathing drift",
+      "subject": "the town at dusk, figure idle by the door",
+      "layers": "rooftops, street, sky",
+      "in": {
+        "kind": "dissolve",
+        "frames": 8,
+        "carry": "the fall keeps moving down-screen as the cave dissolves into the wide"
+      }
+    }
+  ]
+}

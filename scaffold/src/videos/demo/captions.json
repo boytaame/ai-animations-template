@@ -1,0 +1,148 @@
+{
+  "audioFile": "audio/voiceover.wav",
+  "audioDurationMs": 0,
+  "timingSource": "estimated",
+  "offsetMs": 0,
+  "words": [
+    {
+      "text": "Twelve",
+      "startMs": 60,
+      "endMs": 489
+    },
+    {
+      "text": "kilometers",
+      "startMs": 509,
+      "endMs": 1238
+    },
+    {
+      "text": "of",
+      "startMs": 1258,
+      "endMs": 1387
+    },
+    {
+      "text": "trail,",
+      "startMs": 1407,
+      "endMs": 1836
+    },
+    {
+      "text": "one",
+      "startMs": 1856,
+      "endMs": 2061
+    },
+    {
+      "text": "tiny",
+      "startMs": 2081,
+      "endMs": 2360
+    },
+    {
+      "text": "world.",
+      "startMs": 2380,
+      "endMs": 2809
+    },
+    {
+      "text": "Every",
+      "startMs": 2829,
+      "endMs": 3184
+    },
+    {
+      "text": "tile",
+      "startMs": 3204,
+      "endMs": 3483
+    },
+    {
+      "text": "holds",
+      "startMs": 3503,
+      "endMs": 3857
+    },
+    {
+      "text": "a",
+      "startMs": 3877,
+      "endMs": 4007
+    },
+    {
+      "text": "whole",
+      "startMs": 4027,
+      "endMs": 4381
+    },
+    {
+      "text": "story",
+      "startMs": 4401,
+      "endMs": 4755
+    },
+    {
+      "text": "inside",
+      "startMs": 4775,
+      "endMs": 5205
+    },
+    {
+      "text": "it.",
+      "startMs": 5225,
+      "endMs": 5429
+    },
+    {
+      "text": "Drop",
+      "startMs": 5449,
+      "endMs": 5728
+    },
+    {
+      "text": "through",
+      "startMs": 5748,
+      "endMs": 6252
+    },
+    {
+      "text": "the",
+      "startMs": 6272,
+      "endMs": 6477
+    },
+    {
+      "text": "crust",
+      "startMs": 6497,
+      "endMs": 6851
+    },
+    {
+      "text": "and",
+      "startMs": 6871,
+      "endMs": 7076
+    },
+    {
+      "text": "the",
+      "startMs": 7096,
+      "endMs": 7300
+    },
+    {
+      "text": "world",
+      "startMs": 7320,
+      "endMs": 7675
+    },
+    {
+      "text": "flips.",
+      "startMs": 7695,
+      "endMs": 8124
+    },
+    {
+      "text": "Same",
+      "startMs": 8144,
+      "endMs": 8423
+    },
+    {
+      "text": "kit,",
+      "startMs": 8443,
+      "endMs": 8722
+    },
+    {
+      "text": "every",
+      "startMs": 8742,
+      "endMs": 9097
+    },
+    {
+      "text": "single",
+      "startMs": 9117,
+      "endMs": 9546
+    },
+    {
+      "text": "time.",
+      "startMs": 9566,
+      "endMs": 9920
+    }
+  ]
+}
