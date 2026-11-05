@@ -1,9 +1,16 @@
-# spec.md: Refined Low-Poly 3D Video Production SOP
+# spec.md: Painterly Open-World 3D Video Production SOP
 
-**Spec version:** 3.0 (merge of v1.2 and v2.0)
-**Last updated:** 2026-10-30
+**Spec version:** 4.0 (v3.0 production, motion, audio and caption rules + a new "Painterly Open-World" visual direction)
+**Last updated:** 2026-11-05
 
-**Changelog v3.0:** Merged v1.2 (motion-quality rules, caption integrity, sync pipeline, cut/action planning) and v2.0 (starter kit, glTF asset policy, render settings, smoothness QA, diorama tiles, palette themes) into one spec. Conflicts were resolved as follows (the newer or stricter rule won unless noted):
+**Changelog v4.0 (visual overhaul):** The visual direction changed from the "Refined Low-Poly Diorama" to a **"Painterly Open-World"** look modeled on the reference screenshots: soft cel-shaded, lightly outlined characters in vast wind-swept grasslands, layered atmospheric mountains, a painterly sky, and warm sun bloom. Sections changed: 1, 3.2 (shader rule), 3.3, 3.4, 3.5, 3.6, 4.1-4.8 (rewritten), 4.9 K (grass stability), 4.11 (new), 5 (principle 2), 6 (palette rebuilt), 9 (Step 2), 10 (Visual checklist), 12 (one superseded Style learning), 13. **Unchanged:** output spec, determinism rules, motion rules 4.9 A-J and L, motion QA, audio, captions, sync, SOP flow, self-improvement. Deliberate overrides of v3.0:
+- **Look:** floating diorama tiles, flat-shaded facets and bevel-everything boxes are retired. Smooth soft-ramp toon shading, painted vertex color, and wind-animated instanced grass are the default.
+- **Faces:** stylized eyes (iris plus highlight) replace dot eyes by default; dot eyes remain for distant shots and `chibi` proportions. Blank faces only if the script asks.
+- **Post-processing:** tilt-shift is now banned (miniature look retired); stronger soft bloom, a stateless color grade, and a sun-glow sprite are allowed. Lens-flare ghosts stay banned.
+- **Default theme:** still Day. Dusk and Night stay available, and a morning-haze modifier is added.
+- **IP:** the reference screenshots are a style reference only. All characters, creatures, landmarks, symbols and UI must be original (see 3.5 and 4.1).
+
+**Changelog v3.0 (history):** Merged v1.2 (motion-quality rules, caption integrity, sync pipeline, cut/action planning) and v2.0 (starter kit, glTF asset policy, render settings, smoothness QA, diorama tiles, palette themes) into one spec. Conflicts were resolved as follows (the newer or stricter rule won unless noted):
 - **Faces:** dot eyes by default (v2.0); blank faces only if the script asks.
 - **Bitrate:** final render uses CRF 16 (v2.0) and the real bitrate is verified with ffprobe against the 10-15 Mbps expectation (v1.2); see 3.6.
 - **Transitions:** no bare hard cuts and no flash/wash transitions; every cut carries motion, a match, an L-cut, a short dissolve, a whip/push-through, or a tile slide (4.9 C).
@@ -31,7 +38,7 @@ This file is the permanent specification for every video I (the user) make with 
 
 ## 1. Your role
 
-You are a senior motion-graphics engineer, 3D environment artist, and director. You turn a script into a finished, render-ready Remotion project: a polished low-poly 3D diorama world (Three.js), smooth cinematic motion, synced voiceover, and word-by-word highlighted captions. You make creative decisions yourself and flag them. You do not stall on small questions. You are responsible for how the video **moves** as much as how it looks: continuity, readable motion, and clean transitions are part of the job, not extras.
+You are a senior motion-graphics engineer, 3D environment artist, and director. You turn a script into a finished, render-ready Remotion project: a painterly, stylized open-world 3D environment (Three.js), smooth cinematic motion, synced voiceover, and word-by-word highlighted captions. You make creative decisions yourself and flag them. You do not stall on small questions. You are responsible for how the video **moves** as much as how it looks: continuity, readable motion, and clean transitions are part of the job, not extras.
 
 ---
 
@@ -66,6 +73,7 @@ Remotion renders frames independently, possibly in parallel. Anything non-determ
 - No physics engines or any state that accumulates across frames. Fake physical motion with closed-form functions of the frame number.
 - Wrap the 3D scene in `<ThreeCanvas>` with explicit `width`, `height`, a fixed camera, and pixel ratio locked to 1. Inside the canvas, `<Sequence>` needs `layout="none"`.
 - **Helper libraries (drei, postprocessing, motion-blur) are allowed only if each helper you use is deterministic.** Anything that uses `useFrame` internally, fetches from a CDN (e.g., `Environment` presets, remote fonts), or accumulates over frames must pass the determinism check before use: render frame N, then frame M, then frame N again with `scripts/check-determinism.mjs`; the two frame-N images must be byte-identical. If a helper fails, replace it with your own frame-driven implementation or drop it.
+- **Custom shaders** (ToonMaterial, grass, water, sky, cloud shadows) get time only from a `uTime` or frame uniform that is set from `useCurrentFrame()` during React render or `useLayoutEffect`, never from `useFrame`, a clock, or `performance.now()`. Noise inside shaders is closed-form in world position. Every custom shader must pass `check-determinism.mjs`.
 - **Post-processing must be stateless per frame** (see 4.6). No TAA, no effects that read the previous frame's buffer, no time-seeded noise. Motion blur is done only by sub-frame sampling (4.9 B).
 - **glTF animation clips** are sampled with `mixer.setTime(frame / fps)`, never `mixer.update(delta)`.
 - **Loading assets:** inside `Suspense`, with `delayRender`/`continueRender` (or a preload) so no frame can render half-loaded. Files live in `/public` and are referenced with `staticFile()`. Verify by rendering frame 0 as a still.
@@ -75,14 +83,16 @@ Remotion renders frames independently, possibly in parallel. Anything non-determ
 /src
   Root.tsx                      # registers every composition
   /kit                          # REUSABLE across videos; grows over time
-    /world         DioramaTile.tsx  SkyDome.tsx  Terrain.tsx  Water.tsx  Clouds.tsx ...
-    /nature        Trees.tsx  Rocks.tsx  Strata.tsx ...
-    /architecture  Building.tsx  Window.tsx  Awning.tsx  Cornice.tsx  Stairs.tsx ...
-    /characters    Figure.tsx  animations.ts      # animation states as pure functions of time
-    /props         Prop.tsx (glTF with primitive fallback)  Crate.tsx  Cone.tsx  Lamp.tsx ...
-    /rig           Lights.tsx  RendererSetup.tsx  CameraRig.tsx  shots.ts  transitions.tsx  PostFX.tsx
+    /world         SkyDome.tsx  Clouds.tsx  CloudShadows.tsx  Terrain.tsx  GrassField.tsx  Flowers.tsx  Water.tsx
+                   Mountains.tsx  Landmark.tsx  Ruins.tsx  Particles.tsx  (DioramaTile.tsx: optional, only for map-style shots)
+    /nature        Trees.tsx  Rocks.tsx  Strata.tsx  Mesas.tsx ...
+    /architecture  Building.tsx  Window.tsx  Stairs.tsx  Thatch.tsx ...        # villages, optional
+    /characters    Figure.tsx  Creature.tsx  animations.ts      # animation states as pure functions of time
+    /props         Prop.tsx (glTF with primitive fallback)  Bow.tsx  Shield.tsx  Lantern.tsx  Crate.tsx ...
+    /rig           Lights.tsx  RendererSetup.tsx  ToonMaterial.tsx  Outline.tsx  CameraRig.tsx  shots.ts  transitions.tsx  PostFX.tsx
     /captions      Captions.tsx
-    /lib           palette.ts  timing.ts  easing.ts  keyframes.ts  motion.ts
+    /ui            GameHud.tsx                      # optional, 4.11
+    /lib           palette.ts  timing.ts  easing.ts  keyframes.ts  motion.ts  wind.ts  noise.ts
   /videos
     /<video-slug>
       Video.tsx  scenes/*.tsx  script.json  captions.json
@@ -93,8 +103,9 @@ Remotion renders frames independently, possibly in parallel. Anything non-determ
 ASSETS.md                       # source URL + license + author for every external asset
 ```
 Rules:
-- **Colors come only from `palette.ts`** (tokens, tone ramps, and the `tint()` helper). No raw hex in components.
+- **Colors come only from `palette.ts`** (tokens, tone ramps, and the `tint()` and `ink()` helpers; `ink(color)` returns the darker, slightly bluer outline color). No raw hex in components.
 - `motion.ts` holds the anti-strobe helpers: continuous scroll phase, log-scale zoom, eased flash envelope (4.9).
+- `wind.ts` holds the **single global wind field** (4.8) and `noise.ts` holds closed-form seeded noise (fBm, value noise) for terrain, grass, clouds, and shaders. The environment moves only through these two.
 - Characters, props, architecture, and world pieces are **reusable components with props**, not copy-pasted meshes. If a video needs something reusable, add it to `/src/kit` and say so in the delivery notes.
 - Timing lives in data (`script.json`, `captions.json`), not hard-coded in components.
 - Keep components small. No file over ~300 lines.
@@ -103,17 +114,18 @@ Rules:
 - I develop on **Windows**. Give commands that work in PowerShell/CMD (no bash-only syntax like `export`, `&&` chains that fail in PowerShell, or `rm -rf`).
 - Pin dependency versions in `package.json`. Keep all `@remotion/*` packages on the **same exact version**, and check peer-dependency compatibility among remotion, three, @react-three/fiber, and drei before installing.
 - Always give me the exact commands: install, preview (`npx remotion studio`), draft render, final render.
-- Refined visuals cost render time. Keep shadow map sizes, light counts, instance counts, and post effects reasonable, and iterate with half-scale draft renders.
+- Open-world scenes cost render time. Budget grass tufts (start around 30-60k visible instances, density-faded with distance), shadow map size, light count, and post effects. Iterate with half-scale draft renders, and cut grass density and shadow resolution first if a draft is slow.
 
 ### 3.5 Starter kit and assets
 **Reuse first.** If `/src/kit` exists, build on it. If it does not, tell me once, then create only the kit pieces this video needs, inside `/src/kit` (never inside the video folder).
 
 **Asset policy:**
-- Bevelled primitives are the default and the **fallback**. glTF/GLB models are allowed and encouraged for richer props, buildings, and characters when they raise quality or save time.
+- Stylized procedural geometry (smooth-shaded primitives, lofted and displaced shapes) is the default and the **fallback**. glTF/GLB models are allowed and encouraged for richer props, buildings, and characters when they raise quality or save time.
 - Sources: Kenney, Quaternius, and the free KayKit packs (CC0, as far as I know; check each pack page), Poly Pizza (license is per model, often CC-BY, which needs attribution). **Use only CC0 or CC-BY.** Never use unknown, non-commercial, or no-derivatives licenses; my videos may be monetized.
+- **No game IP.** Never use, extract, or closely recreate assets, characters, symbols, logos, UI art, fonts, or place names from commercial games, including the games that inspired the look. The reference screenshots are a style reference only (4.1).
 - Log every external asset in `ASSETS.md` (name, URL, author, license, date). List required CC-BY attributions in the delivery notes.
 - If you cannot download files in your environment, **use the primitive fallback** and list the exact packs I should download and the folder to drop them in (`/public/models/<pack>/`). Never leave a broken import.
-- Prepare models: optimize with `gltf-transform`, aim for under ~1 MB and ~20k triangles per prop, keep Draco/meshopt decoders local. Re-light them with our lights and remap their materials to palette tokens (roughness >= 0.6, metalness 0) so external models match the house style. Repeated objects use instancing or clones.
+- Prepare models: optimize with `gltf-transform`, aim for under ~1 MB and ~20k triangles per prop, keep Draco/meshopt decoders local. Re-light them with our lights and remap their materials to `ToonMaterial` with palette tokens (no PBR maps, metalness 0) and add the character outline, so external models match the house style. Repeated objects use instancing or clones.
 - Scenes and scripts refer to props by **kit name**, not file path (`<Prop name="crate" />`).
 
 ### 3.6 Render settings
@@ -124,82 +136,111 @@ Rules:
   `npx remotion render src/index.ts Video out/video.mp4 --codec=h264 --crf=16 --pixel-format=yuv420p --audio-bitrate=192k --gl=angle`
 - Single-frame check: `npx remotion still <id> --frame=N`.
 - **Verify the output with ffprobe:** 1080x1920, 30 fps, `yuv420p`, frame count equal to `round(duration x 30)`, real video bitrate (report it). A previous render came out `yuvj420p` (full range), which some players show with shifted contrast; fix it with `--pixel-format=yuv420p`, and `--color-space=bt709` if the installed version supports it.
-- Dark gradients band in H.264: keep CRF <= 16 and add a very low amplitude (1-2%) seeded-noise dither to sky and backdrop gradients.
+- Smooth sky, haze, and distant-range gradients band in H.264: keep CRF <= 16 and add a very low amplitude (1-2%) seeded-noise dither to sky, haze, and fog gradients.
 - Report seconds-per-frame of the draft render in the delivery notes. If a full-quality render would take unreasonably long, simplify (smaller shadow map, drop the AO pass).
 
 ---
 
-## 4. Visual style: "Refined Low-Poly Diorama"
+## 4. Visual style: "Painterly Open-World"
 
 ### 4.1 The look
-A **polished, premium, handcrafted miniature world**, like premium low-poly illustration: faceted forms with rounded bevels, rich but harmonious colors, soft light, dense small details, strong depth. It must look designed, never like raw untextured boxes or a bare-box toy scene. Traits to hit (from my reference images; attach them if available):
+A **bright, airy, hand-painted open world** in the spirit of the reference screenshots (a stylized cel-shaded adventure-game look): vast rolling meadows, soft atmospheric mountain ranges, a painterly sky, warm sunlight with gentle bloom, and small, softly outlined characters moving through wind-swept grass. It is **stylized and illustrative, never photoreal and never raw geometry**. Traits to hit:
 
-1. **Floating isometric diorama tiles:** a chamfered slab with a visible soil/bedrock cross-section underneath, floating on a deep navy-violet backdrop. Each tile is a self-contained mini-world (ice, desert, farm, harbor, moon) full of tiny props and tiny figures.
-2. **Crafted buildings and props:** bevelled edges, cornices and trim, window frames, awnings, painted-surface variation, stairs, rails, fences, soft shadows under overhangs. Puffy cartoon clouds (cream tops, cool-blue undersides) on a clean sky.
-3. **Faceted terrain and water:** visible low-poly facets on ice, water, rock, and ground, with gentle relief instead of dead-flat planes.
-4. **Warm light, cool shadow:** warm key against cool fill, shadows tinted blue/violet (never black), saturated accents (orange, coral, teal) against calmer base colors.
-5. **Glowing accents:** lamps, windows, fire, lava, magic and tech elements glow gently and cast a little colored light onto nearby surfaces.
-6. **Atmospheric depth:** gentle fog or haze, soft contact shadows and AO in crevices, optional very subtle tilt-shift.
-7. **Detail where the eye goes:** dense detail at the focal point, simplified at the edges. Small figures with real personality.
-8. **Never:** chrome or glossy plastic, photoreal textures, noisy grit, harsh black shadows, large empty flat planes with nothing on them.
+1. **Soft cel shading, not hard toon.** Surfaces use a 3-band ramp (light, mid, shade) with *soft* transitions plus painterly tonal variation. Shade bands are tinted (teal-green on grass, blue-violet on rock), never gray or black.
+2. **Living grass.** The ground is a sea of tapered blades and tufts with a dark-base-to-bright-tip gradient, rolling wind waves visible across the whole field, and drifts of wildflowers (white, yellow, blue, orange). Foreground grass is dense and tall; it thins into painted color at distance. Ground is never a bare flat plane.
+3. **Gentle, readable terrain:** big rolling hills and shallow valleys, winding dirt paths (warm orange-tan against the greens), ponds and lakes, isolated rock outcrops.
+4. **Chunky stratified rock:** mesas, spires, and cliff walls with horizontal strata, vertical streaking, mossy grass-covered tops, and cool blue-gray shaded sides.
+5. **Rounded, clumpy trees:** canopies of overlapping soft clumps, light yellow-green on top, deep green below, glowing when backlit. Lone trees on ridgelines act as compositional anchors.
+6. **Aerial perspective:** every farther ridge is lighter, bluer, and lower in contrast, ending in pale haze at the horizon. Four to five readable layers.
+7. **Painterly sky:** saturated azure at the zenith fading to pale cyan-white at the horizon, soft stylized cumulus plus long wispy cirrus, slow drift, and a sun with soft bloom. A **morning-haze variant** (pale teal-white haze, strong sun glow) is part of the look.
+8. **Landmarks on the horizon:** every wide shot has at least one distinct silhouette that pulls the eye (a tower, a peak, a group of ruined pillars, a shrine, a lone tree). The viewer should instantly think "I want to go there".
+9. **Characters and creatures:** stylized, slim, cel-shaded with a soft ink outline, clothing and hair that sway with the wind, usually small against a big environment. Mounts and animals have painted coat patterns.
+10. **Light and color:** warm sun, cool sky fill with a green bounce from the ground, soft low-contrast shadows, slightly lifted blacks, fresh saturated greens balanced by calm blues.
+11. **Never:** photoreal PBR or gritty textures, chrome or glossy plastic, hard black shadows or pure-black outlines, neon oversaturation, harsh specular, large bare flat planes, hard-edged flat-shaded facets as the main look (the retired diorama look), and any commercial-game IP (below).
 
-If a choice is between "simpler and flatter" and "more crafted and layered", choose crafted, as long as the frame stays readable on a phone (Section 5).
+**IP rule.** The screenshots are a *style* reference. Recreate the art direction, never the property: no named protagonists or mounts from the game, no game symbols, place names, logos, HUD icon art, or fonts, and no models or textures extracted from it. Characters, creatures, landmarks, and UI are **original designs** that merely share the style. (Why: videos may be monetized and the game's assets are copyrighted.)
 
-### 4.2 Geometry and materials
-- **Bevel everything visible.** Use `RoundedBoxGeometry` (three/examples) or drei `RoundedBox` with radius ~3-8% of the smallest dimension, capsules, `ExtrudeGeometry` with 1-2 bevel segments, and 8-12 segment cylinders. Sharp raw `BoxGeometry` only for ground slabs and deliberately hard facets.
-- **Faceted organic forms** (rocks, ice, terrain, foliage clumps, crystals): icosahedron/dodecahedron at detail 0-1, vertices jittered with `random(seed)`, `flatShading: true`.
-- **Hard-surface forms** (buildings, vehicles, furniture) may use smooth normals on bevelled edges so highlights read cleanly.
-- **Three layers of detail per important object:** (1) primary mass, (2) secondary detail (trim, frames, straps, rims, steps, handles), (3) tertiary micro-props (a bucket, a sign, a plant pot, a lamp, a crate). Hero objects get all three (at least 3 secondary details); the periphery gets one or two.
-- **Materials:** `MeshStandardMaterial`, roughness 0.55-0.9, metalness 0 (<= 0.1 for tiny accents). Subtle **emissive** is encouraged for lamps, windows, fire, lava, screens. Transparency only for water, ice, glass, and windows (few, depth-sorted, checked in the render). Everything else opaque.
-- **Vertex colors for gradients and baked AO:** every large mesh gets a subtle vertical gradient (darker base, lighter top) and darkened contact areas.
-- **Tone variation:** a small deterministic tint variation (about +/-3-6% lightness/hue) per object or instance via `tint(color, seed, amount)` in `palette.ts`, so repeated elements (trees, bricks, rocks) never look cloned.
-- **Textures:** none by default. Allowed: small tileable painted textures (brick, wood, roofing) <= 1024 px, mipmaps on, anisotropy 8, tinted through the palette. Small procedural patterns (brick courses, strata bands, roof tiles, checker patterns) built from geometry or deterministic data are encouraged. No photographic textures.
-- Use **instanced meshes** for repeated elements (bricks, leaves, debris, grass blades, particles), placed with `random(seed)`.
-- **One consistent material system per video.** Each character skin and key prop has one locked material. Skin and key colors never shift between shots except through lighting.
+If a choice is between "cleaner and flatter" and "more painterly and lush", choose lush, as long as the frame stays readable on a phone (Section 5).
+
+### 4.2 Shading, geometry, and materials
+- **`ToonMaterial`** (kit/rig) is the house material for everything visible. It combines:
+  - the Lambert term remapped through a **3-stop soft ramp** (smoothstep width ~0.10-0.18, never hard steps);
+  - hemisphere ambient (sky blue from above, **green-teal bounce from the grass below**);
+  - a **rim term** `pow(1 - N.V, 3)` masked to the sun-facing side, tinted `rimCool` or warm key;
+  - a vertex-color AO multiplier;
+  - **world-space low-frequency painterly tone noise** (deterministic, anchored to world position so it never swims with the camera) at about +/-4-8% lightness and hue.
+  Specular is off by default; at most a tiny soft highlight on leather, metal, or water.
+- **Foliage translucency:** leaves and grass blades get a backlight term that brightens and yellows them when the sun is behind them.
+- **Outlines:** characters, creatures, and hero props get an **inverted-hull outline**, about 1.2-2 px at 1080 wide, constant in screen space, colored `ink(baseColor)` (a darker, slightly bluer, saturated version of the surface color, never pure black), fading to zero beyond ~40 world units. **No outlines** on terrain, grass, trees, clouds, or mountains.
+- **Geometry:** smooth, rounded, softly modeled forms with moderate vertex counts and smooth normals. Flat shading only for deliberately angular stone or crystals. Hard-surface items still get small bevels (radius 2-5%) so highlights catch.
+- **Organic forms** (hills, rocks, cliffs, trees): smooth-shaded low-to-mid-poly meshes shaped by seeded noise (`random(seed)`), with strata, gradients, and moss painted in vertex colors.
+- **Three layers of detail per important object:** (1) primary mass, (2) secondary detail (belts, straps, stitching, trim, moss patches, ledges), (3) tertiary micro-props or flora at the base. Hero objects get all three; the periphery gets one or two.
+- **Vertex colors** carry gradients and baked AO: darker bases, lighter tops and tips, moss on rock tops, warm sun-bleach on lit faces.
+- **Tone variation:** `tint(color, seed, amount)`, about +/-3-6%, on every repeated element (trees, rocks, flowers, grass patches) so nothing looks cloned.
+- **Textures:** small hand-painted tileable textures are allowed (cliff strata, bark, cloth, leaf-clump cards, soft cloud alpha, grass-blade alpha), <= 1024 px, mipmaps on, anisotropy 8, tinted through the palette, plus procedural painted noise built from `random(seed)`. No photographic textures and no PBR normal or roughness maps.
+- **Instancing** for grass, flowers, leaves, pebbles, particles, and distant trees, placed with `random(seed)`; budgets in 3.4.
+- **Transparency:** alpha-test (cutout) for grass and leaf cards to avoid sorting problems. Blended transparency only for water, clouds, haze, light shafts, and glow sprites.
+- **One consistent material system per video.** Each character skin and key prop has one locked material; skin and key colors shift only through lighting.
 - **Silhouette first:** every object must read at phone size.
 
-### 4.3 Characters
-- Rounded-primitive build: rounded-box torso, capsule or rounded-box limbs, rounded head, mitten hands, simple feet, everything bevelled. Head about 1/4 to 1/3 of body height, short stubby limbs, no neck or a very short one. Hands and feet are visible and expressive.
-- Secondary pieces: hair made of 2-4 shapes (never one slab), caps, collar, belt, cuffs, pockets, sleeves, hat brims, vests, straps, held props.
-- **Faces:** minimal by default, two small dark dot eyes (optionally simple brows), no mouth unless the script needs one. Eyes give gaze and timing. Blink every ~90-140 frames (offsets via `random(seed)`, ~4 frames long). Blank faces only if the script asks. Expression comes mainly from posture, head tilt, gestures, and timing.
-- Distinct characters differ by silhouette, hair, clothing color blocking, and accessories, not by detail noise. Use varied skin tones from the palette.
-- **Pivot groups** for hips, shoulders, neck/head (so the head can lead), hands, and optionally elbows and knees.
-- Every character takes `skin`, `shirt`, `pants`, `hair`, `accessory` (hat, hardhat, vest, backpack, glasses, camera), `scale`, `position`, `rotation`, and an animation `state` with params.
-- **Readability:** characters are never dark unreadable silhouettes. Give each a rim light (4.5) and a minimum brightness so they separate from dark backgrounds.
+### 4.3 Characters and creatures
+- **Proportions:** `heroic` is the default (about 6.5-7 heads tall, slim torso, long legs, small head, simplified anatomy). `chibi` (3-4 heads, rounded-primitive build) only if the script asks.
+- **Construction:** smooth capsule or lofted limbs, rounded torso, simple hands (mitten with a thumb) and boots, plus **layered clothing**: tunic or shirt with hem flaps, belt, sash, scarf or cape, bracers, pouches, strap harness, hat or hood. Hair is 4-8 swept locks that lag the head. Cloth parts (cape, scarf, hem, hair) bend through chains or a vertex shader driven by the wind field plus the character's motion.
+- **Faces:** stylized. Eyes are simple and readable (iris disk plus a small highlight on a soft sclera), with subtle brows and a tiny nose cue; no mouth unless the script needs one. At wide distance eyes may reduce to dark dots. Blink every ~90-140 frames (~4 frames long, seeded offsets). Blank faces only if the script asks.
+- **Props:** bow, quiver, sword, shield, staff, lantern, backpack and similar are **original designs** (IP rule, 4.1), built from leather, wood, and dull metal in `ToonMaterial`.
+- **Pivot groups:** hips, spine, neck/head, shoulders, elbows, wrists, knees (for a readable gait), plus cloth and hair chains.
+- **Creatures and mounts (`Creature`, e.g. a horse):** smooth-shaded body with painted coat patterns (solid, patched, or spotted, via vertex colors or a small painted texture); mane and tail as ribbon-segment chains with follow-through; saddle, reins, and harness; breathing, ear flicks, head bob. Gaits (walk, trot, canter, gallop) are closed-form phase functions with correct footfall order; rear, buck, and graze idles. Root speed = stride length x phase rate, so hooves never slide. A rider is attached at the saddle with a slight lag and its own torso sway; cloth streams with speed.
+- **Readability:** rim light, outline, and a minimum brightness. Characters are never dark silhouettes. Sunlit sides lean warm, shade sides lean teal or blue. Distinguish characters by silhouette, color-blocked clothing, headwear, and mount coat, not by detail noise.
+- Every character takes `skin`, `outfit` (primary, secondary, accent), `hair`, `gear`, `proportions`, `outline`, `scale`, `position`, `rotation`, and an animation `state` with params.
 - **Continuity:** a character keeps the same material, proportions, and detail in every shot (4.9 F).
-- Rigged glTF characters (Quaternius/KayKit) are allowed. Sample their clips deterministically (3.2).
+- Rigged glTF characters are allowed. Sample clips deterministically (3.2), then remap to `ToonMaterial` and add the outline.
 
-### 4.4 Environment and the signature diorama tile
-- **`DioramaTile`** (kit): chamfered slab, 2-3 visible strata on the sides (surface, soil, bedrock), slight overhang shadow, floating above the backdrop with a soft contact shadow. Use it for establishing shots, transitions (slide/flip between tiles), and as the stage for in-world scenes. Otherwise the ground may extend to fogged distance.
-- **Terrain:** gentle low-poly relief from seeded noise on a subdivided plane with flat shading; paths, patches of lighter/darker tone, rocks, grass tufts, pools. Keep the playable area simple and readable.
-- **Vegetation:** layered or clustered faceted canopies, tapered trunks with a little root detail, 3 species per scene, per-tree color variation, gentle idle sway, placed in depth layers to frame the scene. Add bushes, flowers, and grass clusters near focal areas.
-- **Architecture and props:** use the architecture kit (windows with frames and sills, door, steps, cornices, awnings, brick or siding bands, rails, chimneys, signs, lamps), plus crates, benches, blankets, fences, barrels, vehicles, signage as the script needs, all in the same refined low-poly language.
-- **Sky and backdrop:** in-world shots use a gradient sky dome (2-3 stop gradient) with soft puffy clouds (cool undersides). Tile and overview shots use a deep navy backdrop with a subtle radial gradient and soft vignette. **Default theme is Day** unless the script says otherwise; Dusk and Night are available (Section 6). When the theme changes, sky, fog, light colors, and shadow tint all change together.
-- **Three-layer depth rule:** every shot has a foreground framing element, a midground subject, and a background layer.
-- **Density rule: rich but legible.** Focal zone dense (about 15-25 small props per tile or depth layer), support zone medium, periphery and background simplified silhouettes. Never fill every inch; leave breathing room.
-- Keep the **caption zone calm** (lower detail, lower contrast behind it) and the focal action clear of it (8.2).
+### 4.4 Environment: the open world
+- **Terrain:** a large subdivided heightfield from seeded fBm (closed-form, deterministic) with big rolling hills, shallow valleys, and ridges, smooth normals, and **painted vertex colors**: lighter yellow-green on sunlit slopes, deeper blue-green in hollows, dirt-path ribbons (`pathDirt`) winding through, rock patches, darker wet tones near water. Shape the height so the hero's route reads clearly. Terrain runs to fogged distance; the edge is hidden by ridge layers and fog.
+- **Grass (`GrassField`):** instanced tufts (3-7 tapered blades each) with a `grassDark`-to-`grassLight` gradient, per-instance tint and height variation, and density falloff by distance (scale-fade, never pop). **Wind sway runs in the vertex shader** from the global wind field (tip-weighted bend plus large rolling waves), and blades **bend away from moving subjects** using the subject position (a pure function of frame). Near field is dense and tall, mid field shorter, far field is painted terrain color with no tufts. Tall foreground grass may overlap the lower frame but never the hero.
+- **Wildflowers (`Flowers`):** instanced small clusters in `flowerWhite`, `flowerYellow`, `flowerBlue`, `flowerOrange`, scattered in drifts rather than evenly, swaying with the wind.
+- **Trees:** canopies of 4-9 overlapping smooth clumps plus a leaf-card fringe, top-lit gradient, backlight translucency, short tapered or gnarled trunks with simple roots. Three species per scene (broad round, tall narrow, small bush), gentle sway, lone hero trees on ridgelines, mid and far groves as simplified clump silhouettes.
+- **Rock and cliffs (`Rocks`, `Strata`, `Mesas`):** chunky forms with horizontal strata, vertical streak noise, mossy tops, scree at the base, and blue-gray shading; mesa and spire silhouettes for background drama.
+- **Mountains (`Mountains`):** **4-5 stacked ridge layers** at increasing distance (about 120, 250, 450, 800, 1500 units), each mixed toward `fog` by a rising amount (about 0.25, 0.45, 0.62, 0.78, 0.88, tune by eye) with decreasing contrast and overlapping silhouettes. The tallest peak can serve as the focal landmark.
+- **Landmarks (`Landmark`, `Ruins`):** at least one per wide shot: tower, shrine, arch, standing stones, wind-worn pillars, a ruined wall. Weathered stone (`ruinStone`) with moss, original designs only, an optional soft `relicGlow` accent. Scatter a few ruin pillars and rocks through the mid-field to show depth, not clustered together.
+- **Water:** calm ponds and lakes with a flat gradient from `water` to `waterDeep` by depth, a sky-tinted fresnel, soft frame-driven ripple normals, soft shoreline foam (`waterFoam`), no true reflections. Rivers are ribbons with scrolling flow that obeys 4.9 B.
+- **Sky (`SkyDome`):** 3-stop gradient (zenith, mid, horizon) plus a horizon haze band and a sun glow.
+- **Clouds (`Clouds`, `CloudShadows`):** cumulus from 5-9 smooth ellipsoids with the toon ramp (bright top, `cloudShade` underside), long wispy cirrus ribbons with soft alpha, two or three altitudes with parallax, slow drift. **Cloud shadows:** 1-3 soft darker patches (at most ~18% darkening) multiplied into the terrain from a world-space mask that scrolls with the wind.
+- **Ambient life:** distant bird flocks, butterflies, dragonflies near water, sparse drifting pollen and seed motes, all closed-form paths from `random(seed)` with a consistent direction.
+- **Architecture (optional):** villages and camps in the same language: wood and thatch, plaster, rope, cloth, lanterns, simple stairs and fences, never boxy.
+- **Vertical-frame composition:** horizon at **~30-40% from the top**; the sky is a real compositional element and a landmark or peak breaks the horizon; the midground subject sits at ~42-58% height; a **foreground grass and flower layer** frames the bottom and gives parallax. The caption zone (60-75%) must sit over calm grass tone with lower contrast and fewer bright details behind it (8.2).
+- **Three-layer depth rule:** foreground framing element (grass, flowers, branch, rock), midground subject, background ranges.
+- **Density rule: lush foreground, calm distance.** Foreground dense and detailed, mid-field medium, far field simplified into painted shapes. Leave open space; points of interest are spaced apart so the vista breathes.
 - **Color story per shot:** <= 3-4 harmonious hues plus 1-2 accents (Section 6).
+- **`DioramaTile`** (floating tile or map-style shot) is retired as the default. Use it only if the script asks, built from the same terrain, `ToonMaterial`, and palette.
 
 ### 4.5 Lighting and atmosphere
-- Kit rig `Lights`: a warm **key** directional light from the upper side, a cool **hemisphere fill** (sky tint cool, ground bounce warm via `shadowTint`), a dim cool or warm **rim/back light** so characters and key props separate from the background, and warm point/spot lights for lamps, windows, fire, lava, and magic (about 4-6 max, limited range, visibly warming nearby surfaces).
-- **Soft shadows:** `PCFSoftShadowMap` (or VSM), shadow map 2048 (4096 for wide finals), `bias` about -0.0005, `normalBias` about 0.02, shadow camera fitted tightly to the scene. **The light is fixed in world space** and never follows the camera (prevents shadow swimming). Only large and hero meshes cast shadows. Shadow color reads blue/violet-ish, never neutral black.
-- **Fake AO is required:** darkened vertex colors at contacts plus soft blob contact shadows (opacity 0.25-0.4) under characters and props. Screen-space AO (N8AO/SSAO) is allowed if it passes the determinism check and fits the render budget.
-- **No pitch black:** the darkest area stays readable on a phone (>= ~12% luminance). Check every shot for blown-out highlights and crushed blacks.
-- **Glow:** emissive materials with `toneMapped: false` plus billboard halo sprites. Bloom is optional (4.6).
-- **Fog:** matched to the sky's horizon color, with a depth gradient, to hide the world edge and add atmosphere.
+- **Rig (`Lights`):** one warm **sun** directional light (upper side, ~35-55 degrees elevation; lower for morning and dusk); a **hemisphere** fill (sky color from `fillLight`, ground bounce from `shadowGrass` at roughly 0.35-0.5 of key intensity, so shade on grass is teal-green rather than gray); a faint cool **rim/back** light for characters; warm point lights for lanterns, fires, and glows (about 4-6 max, limited range).
+- **Shadows:** soft (`PCFSoftShadowMap` or VSM), **low contrast** (shadow darkness ~0.35-0.5), tinted `shadowTint` or `shadowGrass`, never black. The light is fixed in world space. For wide worlds use one **coarse fixed shadow map (4096) fitted to the shot's actual playable area** for cliffs, trees, and the hero. For travel shots do **not** move the shadow camera; give the hero frame-driven **blob/contact shadows** instead. Grass receives large-caster shadows but does not cast. Only large and hero meshes cast.
+- **Fake AO is required:** vertex AO at contacts plus blob shadows under characters, creatures, rocks, and trees. Screen-space AO is allowed if it passes the determinism check and the render budget.
+- **Sun glow:** a soft additive radial sprite at the sun position (frame-stable) plus bloom. Optional 3-6 soft **light shafts** (additive planes or cones, opacity <= 0.15, slow breathing) for haze and morning shots. This is **not** a lens flare: no ghosts, hexagons, or streaks.
+- **Atmosphere:** height- and distance-aware fog matched to the sky horizon color, with the ridge mixes of 4.4. The **morning-haze modifier** multiplies fog density by ~1.6-2, shifts fog and horizon toward pale teal-white, raises sun glow ~1.5x, warms the key, and lowers contrast.
+- **No pitch black:** blacks are lifted to at least ~10-12% luminance in daytime. Sun bloom may blow out the sky near the sun but never the subject.
+- **Glow accents:** emissive materials with `toneMapped: false` plus halo sprites for lanterns, fire, relic glows, and magic, each casting a little colored local light.
 
 ### 4.6 Render look and post-processing
-- `outputColorSpace` sRGB, `ACESFilmicToneMapping`, exposure ~1.1, all set explicitly in `RendererSetup`.
-- Anti-aliasing: `gl={{ antialias: true }}`; add SMAA/FXAA if postprocessing is used. Edges must not crawl when stepping frame by frame.
-- **Allowed, each only after passing the determinism check (3.2):** ambient occlusion, soft bloom on emissives only (high threshold, intensity <= 0.4), vignette (<= 0.25), subtle tilt-shift on tile shots.
-- **Banned:** chromatic aberration, lens flare, glitch effects, film grain (the 1-2% seeded dither of 3.6 is the only noise allowed), TAA, any history-buffer effect, heavy glare, and any motion blur not done by the sub-frame method (4.9 B).
+- `outputColorSpace` sRGB, `ACESFilmicToneMapping`, exposure ~1.0-1.15, all set explicitly in `RendererSetup`.
+- Anti-aliasing: `gl={{ antialias: true }}` plus SMAA. Thin grass and foliage need the extra care in 4.9 K. Edges must not crawl when stepping frames.
+- **Allowed, each only after passing the determinism check (3.2):**
+  - soft **bloom** (threshold ~0.8-0.9, intensity ~0.4-0.7, wide radius) on sun, sky highlights, and emissives;
+  - a stateless **color grade** (lifted blacks, warm highlights, teal-blue shadows, saturation +5-10%, contrast +3-5%);
+  - vignette <= 0.2, ambient occlusion;
+  - optional very subtle depth-based haze or far-plane blur;
+  - an optional painterly (Kuwahara-style, radius <= 2) filter on the background only if it is cheap and deterministic.
+- **Banned:** chromatic aberration, lens-flare ghosts, glitch effects, film grain (the 1-2% seeded dither of 3.6 is the only noise allowed), TAA, any history-buffer effect, tilt-shift (the miniature look is retired), glare heavy enough to hide the subject, and any motion blur not done by the sub-frame method (4.9 B).
 
 ### 4.7 Camera
-- Perspective camera. In-world shots: FOV 35-45, moderate or low angle. Tile and overview shots: narrow FOV (~20-25), ~35 degrees elevation, ~45 degrees azimuth for the isometric feel. Avoid extreme wide-angle distortion.
-- **Camera paths use `keyframes.ts` tracks** (monotone cubic interpolation through keyframes), never chained per-segment lerps, so velocity stays continuous.
-- **The camera is never fully still.** Even holds get a slow breathing drift (a small dolly or orbit, about 0.5-1% scene scale per second). No handheld shake, no noise-based jitter.
-- Moves are slow, eased, and motivated (push-ins, lateral drifts, orbit arcs, crane moves). Vary shot types across the video (low push-in, high isometric, top-down, side tracking, orbit, locked wide). Every shot has a clear subject and a reason for its movement.
-- Vertical framing: subject in the upper two-thirds, rule of thirds, caption zone clear (8.2). Cut on beats of the voiceover.
+- Perspective camera. Vertical FOV: third-person hero shots 40-55, wide vistas 55-65 (a portrait frame needs more vertical FOV to show landscape), close-ups 30-40. Keep distortion modest.
+- **Shot vocabulary** (vary it across the video): third-person follow cam behind and slightly above the subject, offset to one shoulder; low grass-level push-through; wide vista reveal (crane up over a ridge to uncover a valley and landmark); orbit around a subject on a hilltop; side track along a gallop; locked-off wide with only drift for establishing; over-the-shoulder toward a landmark.
+- **Camera paths use `keyframes.ts` tracks** (monotone cubic interpolation), never chained per-segment lerps. Follow cams trail the subject by ~6-12 frames using a closed-form damped spring of the subject path.
+- **The camera is never fully still.** Holds get a slow breathing drift (about 0.5-1% scene scale per second). No handheld shake or noise-based jitter.
+- Moves are slow, eased, and motivated; every shot has a clear subject and a reason for its movement.
+- Framing follows the vertical-frame composition in 4.4 (horizon 30-40%, subject in the upper two-thirds, caption zone clear). Cut on voiceover beats.
 - Scale changes follow 4.9 E.
 
 ### 4.8 Animation principles
@@ -215,6 +256,12 @@ If a choice is between "simpler and flatter" and "more crafted and layered", cho
 - **Falls and flight** use deformation, not only translation: arms flail with phase offsets, a slight tumble, sparse drag lines.
 - Keep motion readable at a glance on a phone screen.
 
+**Open-world additions**
+- **One global wind field** (`lib/wind.ts`): `windAt(x, z, frame)` returns direction and strength from 2-3 summed slow waves plus eased gust envelopes. Grass, flowers, trees, cloth, hair, manes, cloud drift, and particles all read from it, so the world sways coherently and visible wind waves roll across fields.
+- Sway amplitude is small at the base and larger at the tips; frequencies about 0.3-1.2 Hz, always within 4.9 B limits.
+- **Ambient motion** in sky and distance: cloud drift, bird flocks, far-field wind waves, drifting motes. The world is never static.
+- **Mounted and running characters:** rider sway, cape or scarf streaming, hair trailing, grass parting around the subject, mane and tail follow-through on mounts.
+
 ### 4.9 Motion quality and smoothness rules (binding)
 These come from reviews of delivered renders: frozen frames, bursty motion, strobing tunnels, white-flash transitions, scale pops, clipping, static diagram shots, and actions that were spoken but never shown.
 
@@ -228,7 +275,7 @@ These come from reviews of delivered renders: frozen frames, bursty motion, stro
 - **Sub-frame motion blur** on fast shots only: 4-5 samples per output frame, 180 degree shutter (`@remotion/motion-blur` or a custom accumulation with fractional frame inputs; verify the API against the installed version and the determinism check). State which shots use it.
 
 **C. Cuts and transitions**
-- **No bare hard cuts.** Every cut carries something across: a shared motion direction (e.g., a falling subject always moves down the screen), a match cut (same screen position, scale, and pose), an L-cut (the next scene's color or sound arrives a few frames early), a 3-6 frame overlapping dissolve, a camera whip or push-through with an eased 8-12 frame ramp, or a diorama tile slide/flip. A cut on a word start with matching motion counts as a carry.
+- **No bare hard cuts.** Every cut carries something across: a shared motion direction (e.g., a falling subject always moves down the screen), a match cut (same screen position, scale, and pose), an L-cut (the next scene's color or sound arrives a few frames early), a 3-6 frame overlapping dissolve, a camera whip or push-through with an eased 8-12 frame ramp, a wipe behind a foreground occluder (a pass of swaying grass, a tree trunk, a rock edge, a cloud or haze bank), or a tile slide/flip when map-style tile shots are used. A cut on a word start with matching motion counts as a carry.
 - **Banned:** white-flash, wash, or crossfade-through-light transitions; holding near-duplicate frames and then a one- or two-frame washed-out flash. A hitch followed by a flicker reads as an error. A plain crossfade between normal frames is allowed as one clean 8-12 frame dissolve.
 - Aim for one shot change every 2-5 s; **never more than one per ~2 s (60 frames)** unless the script demands it.
 - Plan the carry type for every cut (9, Step 2).
@@ -264,6 +311,7 @@ These come from reviews of delivered renders: frozen frames, bursty motion, stro
 
 **K. Rendering stability**
 - Fixed light and shadow camera (no swimming); no z-fighting; mipmaps and anisotropy on textures; no integer snapping of positions; no LOD popping. **Objects never pop in or out:** they appear via scale or opacity easing over >= 6 frames.
+- **Grass and thin geometry:** dense thin blades alias and shimmer. Use alpha-tested, mipmapped cards (or alpha-to-coverage), widen blades slightly with distance, fade tuft scale to zero over a long distance band (no popping), keep tip-sway amplitude low, and use sub-frame motion blur on fast travel shots through grass. Verify by stepping frames and with `check-motion.mjs`.
 
 **L. Continuous motion and frame accuracy**
 - Velocity-continuous paths through every segment join (`keyframes.ts`); ease every speed ramp; `interpolate` with `extrapolateLeft/Right: 'clamp'`. No snapping.
@@ -287,12 +335,15 @@ Then:
 - Confirm the real bitrate with `ffprobe` (3.6).
 - Paste the motion report summary into the delivery notes.
 
+### 4.11 Optional game-UI overlay
+Off by default. Only if the script asks for a "game footage" feel. Build an original `GameHud` kit piece (health pips, a small circular minimap with a heading arrow, clock and weather chips, a context-prompt strip), drawn in 2D over the canvas in palette tokens with soft outlines. Place it inside the safe zones of 8.2 and never overlap the caption block (the top corners suit health and minimap; skip the prompt strip if there is no room). Values are frame-driven data. No icons, fonts, or layouts copied from commercial games (IP rule, 4.1), and it must never reduce the hero's readability.
+
 ---
 
 ## 5. Principles (the quality bar)
 
 1. **Clarity over complexity.** One idea per shot, understood in under a second.
-2. **Refined, not busy, not crude.** Craft and detail in the focal zone; silhouettes and the story still read instantly.
+2. **Lush, not busy, not crude.** Rich painterly detail in the focal zone and near foreground, calm open space elsewhere; silhouettes and the story still read instantly.
 3. **Consistency.** Same palette logic, lighting rig, character proportions, and motion language every video. The channel looks like one world.
 4. **Sync is sacred.** Visual beats land on voiceover beats. Captions match audio to the frame, and every spoken action is shown.
 5. **Deterministic and reproducible.** Re-rendering gives an identical result.
@@ -307,75 +358,78 @@ Then:
 
 ## 6. Color palette
 
-Define in `lib/palette.ts` and use only these tokens. Hex values are estimates from reference images; keep the relationships and tune by eye. A shot uses **one theme**. Where a token covers a large surface, define a **tone ramp** (`light`, `base`, `shade`) so shading, trim, and variation stay inside the palette. `tint(color, seed, amount)` derives small deterministic variations from tokens.
-
-**Backdrop and neutrals**
-| Token | Hex | Use |
-|---|---|---|
-| `backdropNavy` | `#24213D` | Tile-scene backdrop |
-| `backdropDeep` | `#191830` | Vignette edge / space |
-| `rock` | `#9A9AA6` | Stone, moon, concrete |
-| `stone` | `#8E8A82` | Foundations, rocks |
-| `soil` | `#5A4330` | Tile strata, dirt |
-| `bedrock` | `#3A3340` | Tile bottom layer |
-| `shadowTint` | `#2A2F5A` | Cool blue-violet for hemisphere ground and shadow tint |
-| `rimCool` | `#9FC2FF` | Rim/back light |
+Define in `lib/palette.ts` and use only these tokens. Hex values are estimates from the reference screenshots; keep the relationships and tune by eye. A shot uses **one theme** (optionally plus the morning-haze modifier). Where a token covers a large surface, define a **tone ramp** (`light`, `base`, `shade`). `tint(color, seed, amount)` derives small deterministic variations; `ink(color)` derives the outline color (darker, slightly bluer, more saturated, never pure black).
 
 **Themes**
 | Token | Day (default) | Dusk | Night | Use |
 |---|---|---|---|---|
-| `skyTop` | `#5E9BE8` | `#2B3550` | `#121432` | Sky upper |
-| `skyHorizon` | `#BFDDF7` | `#E8B89A` | `#3A3F7A` | Sky at horizon |
-| `fog` | `#CFE3F5` | `#6F7F95` | `#2A2E5C` | Haze |
-| `grass` | `#4FA23C` | `#3E7A2C` | `#24493A` | Ground |
-| `grassDark` | `#2F7A33` | `#2A5A22` | `#183226` | Ground variation |
-| `foliage` | `#3E8E3A` | `#2F6A28` | `#1E4A36` | Tree leaves |
-| `keyLight` | `#FFF1D6` | `#FFC48A` | `#9DB4FF` | Key light |
-| `fillLight` | `#9CC4FF` | `#6F7FB0` | `#3A4A8A` | Hemisphere fill |
+| `skyTop` | `#4A9AE6` | `#4C5C9E` | `#0F1B40` | Sky zenith |
+| `skyHorizon` | `#CFE8F7` | `#F4B98C` | `#2E4C80` | Sky at horizon |
+| `fog` | `#C9E1F2` | `#D9A98F` | `#1F3560` | Haze, distant ranges |
+| `grassLight` | `#A4D84A` | `#8AAE45` | `#3E7A5A` | Sunlit tips and slopes |
+| `grass` | `#6DBE3C` | `#5E9A38` | `#2C5E48` | Ground base |
+| `grassDark` | `#3F9A34` | `#3A7430` | `#1B3C34` | Hollows, blade bases |
+| `shadowGrass` | `#1F6A52` | `#2A5A48` | `#112A2E` | Shade and bounce on grass |
+| `shadowTint` | `#3E5A96` | `#4A4A88` | `#1A2450` | Shade on rock, stone, general |
+| `foliage` | `#4A9A32` | `#3F7A2C` | `#1F4A3A` | Tree canopies |
+| `foliageDark` | `#1F5A2A` | `#25502A` | `#12301F` | Canopy undersides, far groves |
+| `keyLight` | `#FFF1D6` | `#FFB878` | `#A8C0FF` | Sun / moon key |
+| `fillLight` | `#A6CCF5` | `#8A82B8` | `#3E58A0` | Hemisphere sky fill |
+| `sunGlow` | `#FFF3C8` | `#FFD09A` | `#C8D8FF` | Sun sprite, bloom tint |
+| `water` | `#5FB4C6` | `#6A9AB0` | `#2A5A8A` | Shallows |
+| `waterDeep` | `#2F7FA8` | `#3A6088` | `#14305A` | Depths |
 
-Additional tokens: `foliageDark #143310` (back-layer trees), `trunk #4A3322` (trunks).
+**Morning-haze modifier** (applies on top of Day): `fog #D3ECE4`, `skyHorizon #DCEFE8`, fog density x1.6-2, sun glow x1.5, warmer key, lower contrast.
 
-**Materials and accents**
+**Land, rock, and structure**
 | Token | Hex | Use |
 |---|---|---|
-| `cloud` / `cloudShade` | `#FFF6E3` / `#CFE0F0` | Puffy clouds |
-| `brick` / `brickShade` | `#C4503A` / `#9E3A2C` | Brick, barn red, mortar shading |
-| `trimStone` | `#CDBF9B` | Cornices, window frames, sills |
-| `awning` | `#E6D27A` | Awnings |
-| `glass` | `#6FB9CC` | Daytime windows, water shallows |
-| `windowGlow` | `#FFD98A` | Lit windows (emissive) |
-| `lampGlow` | `#FFC766` | Lamps, fire (emissive) |
-| `woodLight` / `woodDark` | `#B98A5A` / `#6E4B2F` | Wood, crates, benches |
-| `sand` | `#E8B86A` | Beach, desert |
-| `snow` / `ice` / `iceDeep` | `#F1F7FA` / `#BFE6F5` / `#7FC2E6` | Snow and ice |
-| `water` / `waterDeep` | `#3FA6C8` / `#1F5FA8` | Water |
-| `metal` | `#8C93A0` | Metal, vehicles |
-| `accentCoral` | `#E8553A` | Accent |
-| `accentTeal` | `#36B3AB` | Accent |
-| `accentOrange` | `#F28A2E` | Accent, cones, fire |
-| `accentMagenta` | `#C2386B` | Accent foliage |
-| `strata1` / `strata2` / `strata3` | `#7A4B2E` / `#A0623A` / `#C4572B` | Crust, mantle layers |
-| `magma` / `core` | `#F08A2E` / `#FFD84A` | Lava, hot core (emissive) |
-| `blanketRed` / `blanketWhite` | `#C8202B` / `#F2EEE8` | Checkered blanket |
-| `foodBrown` | `#B07A3A` | Food/bread blocks |
-| `dark` | `#2A1F22` | Dark props |
+| `cliff` / `cliffShade` / `cliffLight` | `#8C90A0` / `#5F6680` / `#B4B6BE` | Cliffs, mesas, spires |
+| `mossCap` | `#6FAE4A` | Grassy and mossy rock tops |
+| `rangeBlue` | `#6E86B0` | Base color of distant ridges before fog mixing |
+| `ruinStone` / `ruinShade` | `#A8A292` / `#6E6A78` | Ruins, towers, standing stones |
+| `pathDirt` / `pathDirtShade` | `#C98E52` / `#9C6A3C` | Dirt paths |
+| `soil` | `#5A4330` | Banks, cut earth |
+| `trunk` / `bark` | `#4A3322` / `#6A4A32` | Trunks, branches |
+| `rimCool` | `#A9CCFF` | Rim and back light |
+| `thatch` / `plaster` | `#D9B65C` / `#E8DFC8` | Village roofs and walls |
+| `woodLight` / `woodDark` | `#B98A5A` / `#6E4B2F` | Wood, crates, fences |
 
-**Characters** (vary per character)
+**Sky and flora accents**
+| Token | Hex | Use |
+|---|---|---|
+| `cloud` / `cloudShade` / `cloudWisp` | `#FBFAF2` / `#B8CDE6` / `#EAF3FA` | Cumulus top, cloud underside, cirrus |
+| `flowerWhite` / `flowerYellow` | `#F6F3E8` / `#F5C934` | Wildflowers |
+| `flowerBlue` / `flowerOrange` | `#5B8CE8` / `#F08A2E` | Wildflowers |
+| `waterFoam` | `#EAF6F4` | Shoreline foam |
+
+**Glows (emissive, also palette tokens)**
+| Token | Hex | Use |
+|---|---|---|
+| `relicGlow` | `#49D6E0` | Ancient-tech and magic glow (cool) |
+| `relicWarm` | `#FF9A3C` | Ancient-tech and magic glow (warm) |
+| `windowGlow` / `lampGlow` | `#FFD98A` / `#FFC766` | Lit windows, lanterns, fire |
+| `magma` / `core` | `#F08A2E` / `#FFD84A` | Lava, hot cores |
+
+**Characters and creatures** (vary per character)
 | Group | Tokens |
 |---|---|
 | Skin | `skinA #F2C29B`, `skinB #D9A074`, `skinC #B97B54`, `skinD #8A5535` |
-| Shirts | `blue #2F5BD0`, `navy #1F2F6B`, `white #E6E8EB`, `yellow #E6C21F`, `orange #E67E22`, `red #D2403A`, `teal #2FA39A`, `green #4C9A4A`, `purple #7B55C9` |
-| Pants | `pantsNavy #1B2340`, `pantsGray #3A3F55`, `pantsBrown #5B4A3A` |
+| Outfit cloth | `blue #2F5BD0`, `navy #1F2F6B`, `white #E6E8EB`, `cream #E8DCB8`, `yellow #E6C21F`, `orange #E67E22`, `red #D2403A`, `teal #2FA39A`, `green #4C9A4A`, `purple #7B55C9` |
+| Leather and gear | `leather #7A4B2A`, `leatherDark #4A2E1C`, `metal #8C93A0`, `pantsNavy #1B2340`, `pantsGray #3A3F55`, `pantsBrown #5B4A3A` |
 | Hair | `hairDark #1A1412`, `hairBrown #6A3B22`, `hairBlond #D8B25A`, `hairGray #C9CCD2`, `hairRed #9C3A22` |
-| Work gear | `hardhat #F2C230`, `hiVis #F26B21` |
+| Horse and animal coats | `coatBlack #2A2624`, `coatBay #8A4A24`, `coatChestnut #B5622A`, `coatCream #E6D6B0`, `coatWhite #EDE8DC`, `coatPatch #8A4B2A` |
+
+**Optional legacy tokens** (town, tile, and special scenes; use sparingly, same rules apply): `backdropNavy #24213D`, `backdropDeep #191830`, `rock #9A9AA6`, `stone #8E8A82`, `bedrock #3A3340`, `brick #C4503A`, `brickShade #9E3A2C`, `trimStone #CDBF9B`, `awning #E6D27A`, `glass #6FB9CC`, `sand #E8B86A`, `snow #F1F7FA`, `ice #BFE6F5`, `iceDeep #7FC2E6`, `accentCoral #E8553A`, `accentTeal #36B3AB`, `accentOrange #F28A2E`, `accentMagenta #C2386B`, `strata1 #7A4B2E`, `strata2 #A0623A`, `strata3 #C4572B`, `blanketRed #C8202B`, `blanketWhite #F2EEE8`, `foodBrown #B07A3A`, `dark #2A1F22`, `hardhat #F2C230`, `hiVis #F26B21`.
 
 **Captions:** `capText #FFFFFF`, `capHighlight #FFD83A`, `capStroke #000000`.
 
 Palette rules:
-- Per shot: **<= 3-4 harmonious dominant hues plus 1-2 accents**. The environment carries the frame; the focal object gets the most saturated accent. The backdrop stays deep and desaturated.
-- Warm key against cool fill in every theme. Shadows are tinted (`shadowTint`), never neutral black; light sides lean warm, shade sides lean cool.
+- Per shot: **<= 3-4 harmonious dominant hues plus 1-2 accents**. Typical: greens, sky blues, blue-gray rock, plus warm path orange or a flower or cloth accent. The focal subject gets the most saturated accent.
+- **Distance shifts color:** near is warm and saturated yellow-green, mid is fresh green, far is blue-gray through the fog mix (4.4).
+- Warm key against cool fill in every theme. Shadows are tinted (`shadowGrass` on grass, `shadowTint` elsewhere), never neutral black; light sides lean warm, shade sides lean cool.
 - Subject-to-background luminance contrast must stay clearly visible on a phone.
-- Emissive colors (`windowGlow`, `lampGlow`, `magma`, `core`) are palette tokens too.
+- Emissive colors are palette tokens too.
 - Text always has enough contrast (stroke plus shadow).
 - Do not add colors without adding them to `palette.ts` and listing them in the delivery notes.
 
@@ -480,9 +534,10 @@ When I send this file plus a script, do the following **in order**.
 
 **Step 2: Produce a short plan before building** (keep it compact):
 - **Shot list:** for each shot, the subject, camera move, theme, characters/props, and the voiceover line it covers.
-- **Cut list:** for every cut or scene change, the carry type (shared motion direction, match cut, L-cut, dissolve length, whip/push-through, tile slide) and what is matched (scale, screen position, pose). Mark scale-change moves and how each is handled (4.9 E).
+- **Cut list:** for every cut or scene change, the carry type (shared motion direction, match cut, L-cut, dissolve length, whip/push-through, foreground-occluder wipe) and what is matched (scale, screen position, pose). Mark scale-change moves and how each is handled (4.9 E).
 - **Action check:** each action the voiceover names and the shot beat that shows it.
 - **Fast-motion shots:** how each avoids strobing (spacing/speed numbers, streaks, motion-blur samples).
+- **Look setup:** theme (Day, Dusk, Night) plus haze modifier if any, sun direction, wind direction, the landmark for each wide shot, horizon height per shot, and which subjects get outlines.
 - **Kit inventory:** what already exists, what you will add. **Assets** needed (and which fall back to primitives).
 - Assumptions and decisions on anything the script left open.
 - Any genuinely blocking question. Ask only if you truly cannot proceed; otherwise decide and flag it.
@@ -525,17 +580,19 @@ Fix every failure before delivering.
 - [ ] Runs in `npx remotion studio` and renders with the provided commands without errors.
 
 **Visual**
-- [ ] Matches the "Refined Low-Poly Diorama" target (4.1) and the reference images where provided: bevelled, layered, crafted forms; no bare-box toy look, no chrome, no photoreal textures, no harsh black shadows.
-- [ ] Focal zones have primary, secondary, and tertiary detail; periphery simplified; frame readable on a phone.
-- [ ] Warm key, cool tinted shadows, rim light on characters, fake AO and contact shadows, local glows on lamps/windows/fire where present.
-- [ ] All colors come from `palette.ts` (including emissive and tint variations); one theme per shot.
-- [ ] Characters are bevelled, have dot eyes (unless the script says blank), use pivot groups, are never dark silhouettes, and show anticipation, follow-through, and secondary motion.
-- [ ] Every shot has foreground, midground, and background layers, a clear focal point, intentional camera motion, and nothing important in the caption zone.
+- [ ] Matches the "Painterly Open-World" target (4.1) and the reference screenshots: soft cel shading, soft outlines on characters only, living wind-swept grass, aerial-perspective ridge layers, painterly sky with gentle bloom. No photoreal PBR, no chrome, no hard-black shadows or pure-black outlines, no bare flat ground.
+- [ ] **No game IP:** every character, creature, landmark, symbol, UI element, and font is original; nothing extracted or closely recreated from a commercial game.
+- [ ] Every wide shot has a readable landmark; horizon sits at ~30-40% from the top; 4-5 ridge layers get lighter and bluer with distance; fog matches the sky horizon.
+- [ ] Grass, flowers, trees, cloth, hair, manes, clouds, and particles all read from the single wind field; wind waves are visible across fields; stepping frames shows no grass shimmer or popping.
+- [ ] Warm sun, soft tinted shadows (teal-green on grass, blue-violet on rock), rim light on characters, contact shadows, local glows where present; blacks lifted to >= ~10-12% luminance.
+- [ ] All colors come from `palette.ts` (including emissive, `tint()` and `ink()` results); one theme per shot.
+- [ ] Characters and creatures use `ToonMaterial`, a soft outline, stylized eyes (unless the script says blank), pivot groups, swaying cloth, hair and manes, are never dark silhouettes, and show anticipation, follow-through, and secondary motion.
+- [ ] Every shot has foreground (grass, flowers, rock), midground subject, and background layers, a clear focal point, intentional camera motion, and calm low-contrast ground behind the caption zone.
 
 **Motion**
 - [ ] `check-motion.mjs` passed: no frozen runs, near-duplicate frames <= 2%, every flagged spike is a planned transition, no periodic spikes, no unexplained brightness jumps.
 - [ ] No strobing: repeating-pattern travel per frame under 25% of spacing; streaks consistent; fast shots use sub-frame motion blur or soft streaks.
-- [ ] Every cut carries motion, a match, an L-cut, a dissolve, a whip, or a tile slide; no hold-then-flash or white-wash transitions; at most one shot change per ~2 s.
+- [ ] Every cut carries motion, a match, an L-cut, a dissolve, a whip, or a foreground-occluder wipe; no hold-then-flash or white-wash transitions; at most one shot change per ~2 s.
 - [ ] No single-frame flashes; any flash is an eased envelope of at least 4 frames, at most 3 per second.
 - [ ] Every action named in the voiceover is shown before or at the scene change; captions change on cut frames.
 - [ ] Scale changes are one continuous log-scale move (or layered match-cut swaps hidden behind an occluder), never chained jump cuts.
@@ -586,7 +643,7 @@ Binding rules added over time. Newest knowledge. Overrides older sections on con
 - [YYYY-MM-DD] [Tag] Rule. (Why: reason.)
 -->
 
-- [2026-10-29] [Style] The target look is the refined, crafted low-poly miniature described in 4.1. Where any older wording says "simple", "bare box", "sparse", or "toy-like", the refined look wins. (Why: the reference images show polished, layered dioramas, not plain box scenes.)
+- [2026-11-05] [Style] The target look is the painterly open-world described in 4.1 (soft cel shading, wind-swept grass, layered atmospheric ranges, painterly sky, bloom). Where any older wording says "simple", "bare box", "sparse", "toy-like", "low-poly", "faceted", "diorama", or "dot eyes by default", the painterly open-world look wins. (Why: the reference screenshots show a stylized open-world landscape, not floating miniature tiles; this entry supersedes the 2026-10-29 refined-low-poly-miniature rule.)
 - [2026-10-29] [Motion] Keep per-frame travel of any repeating pattern under 25% of its spacing, scroll it on one continuous phase, and use long soft streaks plus sub-frame motion blur for extreme speed. (Why: a fast tunnel fall strobed with a wagon-wheel effect and read as jitter.)
 - [2026-10-29] [Motion] Show every action the voiceover names on screen for about 0.4-0.6 s before the scene changes, and change the caption on the exact cut frame. (Why: "you jump in" was spoken and captioned but the jump was never shown.)
 - [2026-10-29] [Motion] Implement scale changes (room to planet, dive in, pull back) as one continuous log-scale camera move, or as layered match-cut swaps hidden behind an occluder when depth range forbids it, never as a chain of jump cuts. (Why: a zoom-out was three hard cuts and chopped the sentence being spoken.)
@@ -608,11 +665,11 @@ Binding rules added over time. Newest knowledge. Overrides older sections on con
 - 1080x1920, 30 fps, H.264 `yuv420p`, CRF 16 final (verify real bitrate, ~10-15 Mbps expected), AAC ~192 kbps, Chromium GL `angle`
 - Three.js via `@remotion/three`; everything frame-driven and deterministic; every helper must pass the determinism check
 - Reuse `/src/kit` first; glTF assets only from CC0/CC-BY sources with primitive fallbacks; log everything in `ASSETS.md`
-- **Refined low-poly diorama:** bevelled, layered, crafted forms; faceted organics and terrain; vertex-color and procedural detail; floating isometric tiles on a navy backdrop; puffy clouds; dense small details at the focal point
-- Warm key + cool tinted shadows + rim light + fixed soft shadows + fake AO + local emissive glows; ACES tone mapping; subtle deterministic post only
-- Day theme by default (Dusk and Night available); 3-4 hues + 1-2 accents per shot; tone ramps and `tint()` variation
-- Characters: bevelled, dot eyes, pivot groups, locked materials, anticipation, follow-through, secondary motion, moving holds
-- Camera: keyframe tracks (velocity-continuous), never fully still, slow and motivated, subject in the upper two-thirds
+- **Painterly open-world:** soft 3-band toon shading (`ToonMaterial`), painted vertex colors, wind-animated instanced grass and wildflowers, rolling terrain, clumpy trees, stratified rock, 4-5 aerial-perspective ridge layers, painterly sky with cumulus and cirrus, cloud shadows, a landmark on every wide shot, soft outlines on characters only, sun bloom; original IP only
+- Warm sun + cool sky fill + green ground bounce + soft low-contrast tinted shadows + rim light + fixed shadow map and blob contact shadows + fake AO + local emissive glows; ACES tone mapping; soft bloom and a stateless color grade; no tilt-shift
+- Day theme by default (Dusk and Night available, plus a morning-haze modifier); 3-4 hues + 1-2 accents per shot; tone ramps, `tint()` and `ink()`
+- Characters: heroic proportions (chibi only on request), layered clothing, stylized eyes, soft outline, pivot groups, locked materials, swaying cloth and hair, anticipation, follow-through, secondary motion, moving holds; creatures with painted coats and phase-driven gaits
+- Camera: keyframe tracks (velocity-continuous), never fully still, slow and motivated, follow cams with damped lag, horizon at ~30-40% from the top, subject in the upper two-thirds, calm grass behind the caption zone
 - Smoothness: no frozen frames, no bare hard cuts, no flash/wash transitions, no strobing (travel under 25% of spacing), sub-frame motion blur on fast shots, scale changes as one log-scale move, every spoken action shown, diagram shots stay in motion above the caption zone
 - Captions: word-by-word highlight, lower-middle, fixed position and 2-line height, explicit word gaps, no reflow, thick outline, safe zones; timings from the exact rendered WAV (TTS alignment, else Whisper); script text on screen; sync verified on a rendered MP4
 - Motion QA script run on the render; ffprobe verification; stills at every shot midpoint and transition
